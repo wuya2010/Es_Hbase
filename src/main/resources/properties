@@ -1,0 +1,17 @@
+
+
+   hbase:
+      quorum: 192.168.18.148:2181,192.168.18.149:2181,192.168.18.150:2181
+      root_dir: node01:60000
+      node_parent: /hbase
+
+
+
+
+  elasticsearch:
+    rest:
+      uris: http://192.168.18.149:19200,http://192.168.18.151:19200
+      username: elastic
+      password: H84I4fw6fDgdenuNRgfe
+      connection-timeout: 7200000
+      read-timeout: 7200000
