@@ -10,7 +10,7 @@ import org.apache.hadoop.hbase.io.ImmutableBytesWritable
 import org.apache.hadoop.hbase.mapreduce.TableInputFormat
 import org.apache.hadoop.hbase.util.Bytes
 import org.apache.spark.sql.{SaveMode, SparkSession}
-import org.apache.spark.sql.functions.{broadcast, col, expr, lit, when}
+import org.apache.spark.sql.functions.{col, expr, lit, when}
 
 object dm_company_person_hbase_flag {
 
@@ -24,6 +24,8 @@ object dm_company_person_hbase_flag {
       "es.net.http.auth.user"->"elastic",
       "es.net.http.auth.pass"->"H84I4fw6fDgdenuNRgfe",
       "es.nodes.wan.only" -> "true",
+      "es.batch.write.retry.count"->"10",//默认是重试3次,为负值的话为无限重试(慎用)
+      "es.batch.write.retry.wait"->"15",//默认重试等待时间是10s.可适当加大
       "es.index.auto.create" -> "true",
       "es.nodes" -> "192.168.18.151:19200,192.168.18.149:19200"
     )
@@ -107,7 +109,8 @@ object dm_company_person_hbase_flag {
       Bytes.toString(x._2.getValue(Bytes.toBytes("info"),Bytes.toBytes("logo_src_keyword"))),
       Bytes.toString(x._2.getValue(Bytes.toBytes("info"),Bytes.toBytes("logo_url_keyword"))),
       Bytes.toString(x._2.getValue(Bytes.toBytes("info"),Bytes.toBytes("main_products"))),
-      Bytes.toString(x._2.getValue(Bytes.toBytes("info"),Bytes.toBytes("main_status"))), Bytes.toString(x._2.getValue(Bytes.toBytes("info"),Bytes.toBytes("markers"))),
+      Bytes.toString(x._2.getValue(Bytes.toBytes("info"),Bytes.toBytes("main_status"))),
+      Bytes.toString(x._2.getValue(Bytes.toBytes("info"),Bytes.toBytes("markers"))),
       Bytes.toString(x._2.getValue(Bytes.toBytes("info"),Bytes.toBytes("marketing_annual_marketing_appraisement"))),
       Bytes.toString(x._2.getValue(Bytes.toBytes("info"),Bytes.toBytes("marketing_annual_marketing_turnover"))),
       Bytes.toString(x._2.getValue(Bytes.toBytes("info"),Bytes.toBytes("marketing_estimated_value"))),
@@ -161,22 +164,34 @@ object dm_company_person_hbase_flag {
       ))
       .toDF("dm_gofish_company_id").distinct().repartition(200).as("df_gofish_person")
 
-    val df_gofish_company_flag = company_df.join(person_df,expr("df_gofish_company.id=df_gofish_person.dm_gofish_company_id"),"left")
+    //将空id 与 非空id 分别进行处理
+    val company_df_notnull = company_df.filter(col("id").isNotNull)
+    val company_df_null = company_df.filter(col("id").isNull)
+      .withColumn("is_delete",col("is_delete").cast("int"))
+      .withColumn("sort_long",col("sort_long").cast("long"))
+      .withColumn("status",col("status").cast("long"))
+      .withColumn("year_established_new",col("year_established_new").cast("date"))
+      .withColumn("staff_status",lit(0).cast("int"))//空则一定没有关联上
+
+    val df_gofish_company_1 = company_df_notnull.join(person_df,expr("df_gofish_company.id=df_gofish_person.dm_gofish_company_id"),"left")
         .withColumn("is_delete",col("is_delete").cast("int"))
         .withColumn("sort_long",col("sort_long").cast("long"))
         .withColumn("status",col("status").cast("long"))
         .withColumn("year_established_new",col("year_established_new").cast("date"))
-        .withColumn("staff_status",when(col("dm_gofish_company_id").isNull,lit(0)).otherwise(lit(1)))
+        .withColumn("staff_status",when(col("dm_gofish_company_id").isNull,lit(0)).otherwise(lit(1)).cast("int"))
+        .drop("dm_gofish_company_id")
 
+    val df_gofish_company = df_gofish_company_1.unionByName(company_df_null)
 
-//    df_gofish_company_flag.schema.foreach(println)
-    df_gofish_company_flag.show(false)
+//    df_gofish_company.schema.foreach(println)
+//    df_gofish_company.show(false)
 
-//    //写入ES
-//      df_gofish_company_flag.write.format("org.elasticsearch.spark.sql").options(options)
-//      .mode(SaveMode.Overwrite).save("dm_gofish_company_flag")
+    //写入ES： 写入的时候类型不一致
 
-       println(s"${DM_GOFISH_COMPANY}加载完成....")
+     df_gofish_company.write.format("org.elasticsearch.spark.sql").options(options)
+      .mode(SaveMode.Overwrite).save("dm_gofish_company_flag")
+
+    println(s"${DM_GOFISH_COMPANY}加载完成....")
 
     }
 

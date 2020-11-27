@@ -3,6 +3,7 @@ package com.gofish.test
 import common.CreateWinutils
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.{SparkConf, SparkContext}
+import org.elasticsearch.spark.rdd.EsSpark
 
 object getES_test {
 
@@ -29,7 +30,7 @@ object getES_test {
 //    test_rdd.saveToEs("/test")
 
     //写入es
-//    EsSpark.saveToEs(test_rdd,"/test")
+    EsSpark.saveToEs(test_rdd,"/test")
 
 //    val es_df1 = EsSpark.esRDD(sc, "/dm_gofish_media")
 //
@@ -52,6 +53,20 @@ object getES_test {
 
     //    df_gofish_company.createOrReplaceTempView("df_gofish_company")
     //    df_gofish_person.createOrReplaceTempView("df_gofish_person")
+
+    //方式3
+
+//    dfWriter.write
+//      .format("es")
+//      .option("es.resource", resource)
+//      .option("es.nodes", nodes)
+//      .mode(SaveMode.Append)
+//      .save()
+
+
+        //读es
+//    spark.esDF("/csv/dataframe")
+
 
     df.show()
 
