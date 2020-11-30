@@ -20,16 +20,6 @@ object dm_company_person_hbase_flag {
     val sc = new SparkContext(conf)
     val spark = SparkSession.builder().config(conf).getOrCreate()
 
-    val options = Map(
-      "es.net.http.auth.user"->"elastic",
-      "es.net.http.auth.pass"->"H84I4fw6fDgdenuNRgfe",
-      "es.nodes.wan.only" -> "true",
-      "es.batch.write.retry.count"->"10",//默认是重试3次,为负值的话为无限重试(慎用)
-      "es.batch.write.retry.wait"->"15",//默认重试等待时间是10s.可适当加大
-      "es.index.auto.create" -> "true",
-      "es.nodes" -> "192.168.18.151:19200,192.168.18.149:19200"
-    )
-
     val DM_GOFISH_COMPANY = "dm:gofish_company"
     val DM_GOFISH_PERSON= "dm:gofish_person"
 
@@ -186,9 +176,8 @@ object dm_company_person_hbase_flag {
 //    df_gofish_company.schema.foreach(println)
 //    df_gofish_company.show(false)
 
-    //写入ES： 写入的时候类型不一致
-
-     df_gofish_company.write.format("org.elasticsearch.spark.sql").options(options)
+//    写入ES
+     df_gofish_company.write.format("org.elasticsearch.spark.sql").options(conn_funcs.options)
       .mode(SaveMode.Overwrite).save("dm_gofish_company_flag")
 
     println(s"${DM_GOFISH_COMPANY}加载完成....")

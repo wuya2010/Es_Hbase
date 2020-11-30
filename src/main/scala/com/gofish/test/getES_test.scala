@@ -77,3 +77,33 @@ object getES_test {
   }
 
 }
+
+
+
+//相关配置
+/**
+ *
+//测试es配置
+    val test_options = Map(
+      "es.net.http.auth.user"->"elastic",
+      "es.net.http.auth.pass"->"H84I4fw6fDgdenuNRgfe",
+      "es.nodes.wan.only" -> "true",
+      "es.batch.write.retry.count"->"10",//默认是重试3次,为负值的话为无限重试(慎用)
+      "es.batch.write.retry.wait"->"15",//默认重试等待时间是10s.可适当加大
+      "es.index.auto.create" -> "true",
+      "es.nodes" -> "192.168.18.151:19200,192.168.18.149:19200"
+    )
+
+    //生产es配置
+    val options = Map(
+      "es.net.http.auth.user"->"elastic",
+      "es.net.http.auth.pass"->"mxtZPtg0VYz2dxa907Oj",
+      "es.nodes.wan.only" -> "true",
+      "es.batch.write.retry.count"->"10",//默认是重试3次,为负值的话为无限重试(慎用)
+      "es.batch.write.retry.wait"->"15",//默认重试等待时间是10s.可适当加大
+      "es.index.auto.create" -> "true",
+      "es.nodes" -> "10.50.124.155:19200,10.51.78.177:19200,10.50.160.121:19200"
+    )
+ *
+ */
+
