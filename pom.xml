@@ -46,7 +46,7 @@
             <groupId>org.elasticsearch</groupId>
             <artifactId>elasticsearch-spark-20_2.11</artifactId>
             <version>7.8.1</version>
-<!--            <scope>provided</scope>-->
+            <scope>provided</scope>
         </dependency>
 
         <!--<hbase相关依赖>-->
@@ -138,10 +138,7 @@
                         </execution>
                     </executions>
                 </plugin>
-
-
             </plugins>
-
     </build>
 
 </project>

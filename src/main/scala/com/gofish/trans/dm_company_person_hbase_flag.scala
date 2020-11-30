@@ -10,7 +10,7 @@ import org.apache.hadoop.hbase.io.ImmutableBytesWritable
 import org.apache.hadoop.hbase.mapreduce.TableInputFormat
 import org.apache.hadoop.hbase.util.Bytes
 import org.apache.spark.sql.{SaveMode, SparkSession}
-import org.apache.spark.sql.functions.{col, expr, lit, when}
+import org.apache.spark.sql.functions._
 
 object dm_company_person_hbase_flag {
 
@@ -67,7 +67,7 @@ object dm_company_person_hbase_flag {
       Bytes.toString(x._2.getValue(Bytes.toBytes("info"),Bytes.toBytes("country_code_iso"))),
       Bytes.toString(x._2.getValue(Bytes.toBytes("info"),Bytes.toBytes("country_code_iso2"))),
       Bytes.toString(x._2.getValue(Bytes.toBytes("info"),Bytes.toBytes("country_region"))),
-      Bytes.toString(x._2.getValue(Bytes.toBytes("info"),Bytes.toBytes("create_time"))),
+//      Bytes.toString(x._2.getValue(Bytes.toBytes("info"),Bytes.toBytes("create_time"))),
       Bytes.toString(x._2.getValue(Bytes.toBytes("info"),Bytes.toBytes("custom_status"))),
       Bytes.toString(x._2.getValue(Bytes.toBytes("info"),Bytes.toBytes("district"))),
       Bytes.toString(x._2.getValue(Bytes.toBytes("info"),Bytes.toBytes("dm_gofish_industry_id"))),
@@ -141,7 +141,7 @@ object dm_company_person_hbase_flag {
       Bytes.toString(x._2.getValue(Bytes.toBytes("info"),Bytes.toBytes("total_employees_new"))),
       Bytes.toString(x._2.getValue(Bytes.toBytes("info"),Bytes.toBytes("total_revenue"))),
       Bytes.toString(x._2.getValue(Bytes.toBytes("info"),Bytes.toBytes("twitter"))),
-      Bytes.toString(x._2.getValue(Bytes.toBytes("info"),Bytes.toBytes("update_time"))),
+//      Bytes.toString(x._2.getValue(Bytes.toBytes("info"),Bytes.toBytes("update_time"))),
       Bytes.toString(x._2.getValue(Bytes.toBytes("info"),Bytes.toBytes("vocation"))),
       Bytes.toString(x._2.getValue(Bytes.toBytes("info"),Bytes.toBytes("year_established"))),
       Bytes.toString(x._2.getValue(Bytes.toBytes("info"),Bytes.toBytes("year_established_new"))), //需要转换为date格式
@@ -160,16 +160,18 @@ object dm_company_person_hbase_flag {
       .withColumn("is_delete",col("is_delete").cast("int"))
       .withColumn("sort_long",col("sort_long").cast("long"))
       .withColumn("status",col("status").cast("long"))
-      .withColumn("year_established_new",col("year_established_new").cast("date"))
+      .withColumn("year_established_new",date_format(col("year_established_new"),"yyyy-MM-dd HH:mm:ss"))
       .withColumn("staff_status",lit(0).cast("int"))//空则一定没有关联上
+      .repartition(200)
 
     val df_gofish_company_1 = company_df_notnull.join(person_df,expr("df_gofish_company.id=df_gofish_person.dm_gofish_company_id"),"left")
-        .withColumn("is_delete",col("is_delete").cast("int"))
-        .withColumn("sort_long",col("sort_long").cast("long"))
-        .withColumn("status",col("status").cast("long"))
-        .withColumn("year_established_new",col("year_established_new").cast("date"))
-        .withColumn("staff_status",when(col("dm_gofish_company_id").isNull,lit(0)).otherwise(lit(1)).cast("int"))
-        .drop("dm_gofish_company_id")
+      .withColumn("is_delete",col("is_delete").cast("int"))
+      .withColumn("sort_long",col("sort_long").cast("long"))
+      .withColumn("status",col("status").cast("long"))
+      .withColumn("year_established_new",date_format(col("year_established_new"),"yyyy-MM-dd HH:mm:ss"))
+      .withColumn("staff_status",when(col("dm_gofish_company_id").isNull,lit(0)).otherwise(lit(1)).cast("int"))
+      .drop("dm_gofish_company_id")
+      .repartition(200)
 
     val df_gofish_company = df_gofish_company_1.unionByName(company_df_null)
 

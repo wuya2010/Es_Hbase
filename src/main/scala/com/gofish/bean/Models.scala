@@ -35,7 +35,7 @@ case class Gofishompany(
                          country_code_iso:String,
                          country_code_iso2:String,
                          country_region:String,
-                         create_time:String,
+//                         create_time:String,
                          custom_status:String,
                          district:String,
                          dm_gofish_industry_id:String,
@@ -109,7 +109,7 @@ case class Gofishompany(
                          total_employees_new:String,
                          total_revenue:String,
                          twitter:String,
-                         update_time:String,
+//                         update_time:String,
                          vocation:String,
                          year_established:String,
                          year_established_new:String, //转date类型
