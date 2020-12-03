@@ -1,6 +1,7 @@
 package com.gofish.bean
 
 case class Gofishompany(
+                         row_key:String,
                          id:String,
                          address:String,
                          address_new:String,
@@ -29,6 +30,7 @@ case class Gofishompany(
                          company_dynamic_title:String,
 //                         company_dynamic_title:String,
                          company_mainMarket:String,
+                         company_num:String,
                          company_state:String,
                          country:String,
                          country_code:String,

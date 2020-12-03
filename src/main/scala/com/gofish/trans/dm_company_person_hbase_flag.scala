@@ -3,20 +3,16 @@ package com.gofish.trans
 
 import com.gofish.bean.Gofishompany
 import common.conn_funcs
-import org.apache.spark.{SparkConf, SparkContext}
-import org.apache.hadoop.hbase.{CellUtil, HBaseConfiguration}
-import org.apache.hadoop.hbase.client.Result
-import org.apache.hadoop.hbase.io.ImmutableBytesWritable
-import org.apache.hadoop.hbase.mapreduce.TableInputFormat
 import org.apache.hadoop.hbase.util.Bytes
-import org.apache.spark.sql.{SaveMode, SparkSession}
 import org.apache.spark.sql.functions._
+import org.apache.spark.sql.{SaveMode, SparkSession}
+import org.apache.spark.{SparkConf, SparkContext}
 
 object dm_company_person_hbase_flag {
 
   def main(args: Array[String]): Unit = {
     //build spark
-    val conf = new SparkConf().setAppName("get_hbase")//.setMaster("local[*]")
+    val conf = new SparkConf().setAppName("get_hbase")
     val sc = new SparkContext(conf)
     val spark = SparkSession.builder().config(conf).getOrCreate()
 
@@ -33,6 +29,7 @@ object dm_company_person_hbase_flag {
     //根据样例类字段生成df
     val company_df = company_rdd.map(x=>(
       Gofishompany(
+      Bytes.toString(x._2.getRow),
       Bytes.toString(x._2.getValue(Bytes.toBytes("info"),Bytes.toBytes("id"))),
       Bytes.toString(x._2.getValue(Bytes.toBytes("info"),Bytes.toBytes("address"))),
       Bytes.toString(x._2.getValue(Bytes.toBytes("info"),Bytes.toBytes("address_new"))),
@@ -61,6 +58,7 @@ object dm_company_person_hbase_flag {
       Bytes.toString(x._2.getValue(Bytes.toBytes("info"),Bytes.toBytes("company_dynamic_title"))),
 //      Bytes.toString(x._2.getValue(Bytes.toBytes("info"),Bytes.toBytes("company_dynamic_title"))),  //重复字段
       Bytes.toString(x._2.getValue(Bytes.toBytes("info"),Bytes.toBytes("company_mainMarket"))),
+      Bytes.toString(x._2.getValue(Bytes.toBytes("info"),Bytes.toBytes("company_num"))),
       Bytes.toString(x._2.getValue(Bytes.toBytes("info"),Bytes.toBytes("company_state"))),
       Bytes.toString(x._2.getValue(Bytes.toBytes("info"),Bytes.toBytes("country"))),
       Bytes.toString(x._2.getValue(Bytes.toBytes("info"),Bytes.toBytes("country_code"))),
@@ -154,32 +152,33 @@ object dm_company_person_hbase_flag {
       ))
       .toDF("dm_gofish_company_id").distinct().repartition(200).as("df_gofish_person")
 
-    //将空id 与 非空id 分别进行处理
-    val company_df_notnull = company_df.filter(col("id").isNotNull)
-    val company_df_null = company_df.filter(col("id").isNull)
-      .withColumn("is_delete",col("is_delete").cast("int"))
-      .withColumn("sort_long",col("sort_long").cast("long"))
-      .withColumn("status",col("status").cast("long"))
-      .withColumn("year_established_new",date_format(col("year_established_new"),"yyyy-MM-dd HH:mm:ss"))
-      .withColumn("staff_status",lit(0).cast("int"))//空则一定没有关联上
-      .repartition(200)
+    //时间字段统一
+    val date_col = from_unixtime((col("year_established_new").cast("long"))/1000,"yyyy-MM-dd")
+    val format_date_col = when(date_col.isNotNull,date_col).otherwise(date_format(col("year_established_new"),"yyyy-MM-dd"))
 
-    val df_gofish_company_1 = company_df_notnull.join(person_df,expr("df_gofish_company.id=df_gofish_person.dm_gofish_company_id"),"left")
-      .withColumn("is_delete",col("is_delete").cast("int"))
-      .withColumn("sort_long",col("sort_long").cast("long"))
-      .withColumn("status",col("status").cast("long"))
-      .withColumn("year_established_new",date_format(col("year_established_new"),"yyyy-MM-dd HH:mm:ss"))
+    //根据rowkey进行关联，如果没有该字段则为空
+    val df_gofish_company = company_df.join(person_df,expr("df_gofish_company.row_key=df_gofish_person.dm_gofish_company_id"),"left")
+      .withColumn("is_delete",coalesce(col("is_delete").cast("int"),lit(0)))
+      .withColumn("sort_long",coalesce(col("sort_long").cast("long"),lit(0)))
+      .withColumn("status",coalesce(col("status").cast("long"),lit(0)))//如果为空，转为0
+      .withColumn("year_established_new",format_date_col)
       .withColumn("staff_status",when(col("dm_gofish_company_id").isNull,lit(0)).otherwise(lit(1)).cast("int"))
-      .drop("dm_gofish_company_id")
       .repartition(200)
 
-    val df_gofish_company = df_gofish_company_1.unionByName(company_df_null)
 
-//    df_gofish_company.schema.foreach(println)
-//    df_gofish_company.show(false)
+    /**
+     * 1. 根据表直接提到的 id , 主表无法关联
+     * 2. 根据row_kew 进行关联很多结果集也为空
+     */
+    println("结果集数据条数")
+    df_gofish_company.filter(col("staff_status")=!=lit(0)).show(100,false)
 
-//    写入ES
-     df_gofish_company.write.format("org.elasticsearch.spark.sql").options(conn_funcs.options)
+    val result = df_gofish_company
+        .withColumn("id",col("row_key")) //用 rowkey 的值替换 id
+        .drop("dm_gofish_company_id","row_key")
+
+    // 写入ES
+    result.write.format("org.elasticsearch.spark.sql").options(conn_funcs.options)
       .mode(SaveMode.Overwrite).save("dm_gofish_company_flag")
 
     println(s"${DM_GOFISH_COMPANY}加载完成....")
@@ -187,3 +186,49 @@ object dm_company_person_hbase_flag {
     }
 
   }
+
+
+
+
+
+
+/**
+ * //将空id 与 非空id 分别进行处理， 这里
+ * val company_df_notnull = company_df.filter(col("id").isNotNull)
+ * //时间字段统一
+ * val date_col = from_unixtime((col("year_established_new").cast("long"))/1000,"yyyy-MM-dd")
+ * val format_date_col = when(date_col.isNotNull,date_col).otherwise(date_format(col("year_established_new"),"yyyy-MM-dd"))
+ *
+ * val company_df_null = company_df.filter(col("id").isNull)
+ * .withColumn("is_delete",col("is_delete").cast("int"))
+ * .withColumn("sort_long",col("sort_long").cast("long"))
+ * .withColumn("status",col("status").cast("long"))
+ * //      .withColumn("year_established_new",to_date(col("year_established_new")))
+ * .withColumn("year_established_new",format_date_col)
+ * .withColumn("staff_status",lit(0).cast("int"))//空则一定没有关联上
+ * .repartition(200)
+ *
+ * val df_gofish_company_1 = company_df_notnull.join(person_df,expr("df_gofish_company.id=df_gofish_person.dm_gofish_company_id"),"left")
+ * .withColumn("is_delete",col("is_delete").cast("int"))
+ * .withColumn("sort_long",col("sort_long").cast("long"))
+ * .withColumn("status",col("status").cast("long"))
+ * .withColumn("year_established_new",format_date_col)
+ * .withColumn("staff_status",when(col("dm_gofish_company_id").isNull,lit(0)).otherwise(lit(1)).cast("int"))
+ * .drop("dm_gofish_company_id")
+ * .repartition(200)
+ *
+ * val df_gofish_company = df_gofish_company_1.unionByName(company_df_null)
+ *
+ * //    df_gofish_company.schema.foreach(println)
+ * //    df_gofish_company.show(false)
+ * println("非空id数据集")
+ * company_df_notnull.show()
+ * println(company_df.count)
+ * println("空id数据集")
+ * company_df_null.show()
+ * println(company_df_null.count)
+ *
+ * println("非空join结果")
+ * df_gofish_company_1.show()
+ */
+
