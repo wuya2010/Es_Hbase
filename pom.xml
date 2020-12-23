@@ -28,6 +28,8 @@
             <version>2.4.0</version>
         </dependency>
 
+
+
         <!--<ES相关依赖>-->
 <!--        <dependency>-->
 <!--            <groupId>org.elasticsearch</groupId>-->
@@ -40,8 +42,32 @@
             <groupId>org.elasticsearch</groupId>
             <artifactId>elasticsearch-spark-20_2.11</artifactId>
             <version>7.8.1</version>
-            <scope>provided</scope>
+<!--            <scope>provided</scope>-->   <!--编译不会报错，打包不会包含在内，但是如果打开provided，本地无法连接-->
         </dependency>
+
+
+        <dependency>
+            <groupId>org.elasticsearch.client</groupId>
+            <artifactId>transport</artifactId>
+            <version>7.8.1</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.elasticsearch</groupId>
+            <artifactId>elasticsearch</artifactId>
+            <version>7.8.1</version>
+        </dependency>
+
+
+        <dependency>
+            <groupId>org.elasticsearch.client</groupId>
+            <artifactId>elasticsearch-rest-high-level-client</artifactId>
+            <version>7.8.1</version>
+        </dependency>
+
+
+
+
 
         <!--<hbase相关依赖>-->
         <dependency>
@@ -56,6 +82,13 @@
             <version>2.1.0</version>
         </dependency>
 
+
+        <dependency>
+            <groupId>com.alibaba</groupId>
+            <artifactId>fastjson</artifactId>
+            <version>1.2.47</version>
+        </dependency>
+
         <dependency>
             <groupId>org.apache.hbase</groupId>
             <artifactId>hbase-common</artifactId>
@@ -67,6 +100,26 @@
             <artifactId>hbase-mapreduce</artifactId>
             <version>2.1.0</version>
         </dependency>
+
+
+
+<!--        <dependency>
+            <groupId>org.apache.hadoop</groupId>
+            <artifactId>hadoop-common</artifactId>
+            <version>3.0.0</version>
+        </dependency>-->
+
+<!--        <dependency>-->
+<!--            <groupId>org.apache.hadoop</groupId>-->
+<!--            <artifactId>hadoop-client</artifactId>-->
+<!--            <version>3.0.0</version>-->
+<!--        </dependency>-->
+
+<!--        <dependency>-->
+<!--            <groupId>org.apache.hadoop</groupId>-->
+<!--            <artifactId>hadoop-hdfs</artifactId>-->
+<!--            <version>3.0.0</version>-->
+<!--        </dependency>-->
 
     </dependencies>
 

@@ -18,12 +18,20 @@ object dm_company_person_hbase_flag {
 
     val DM_GOFISH_COMPANY = "dm:gofish_company"
     val DM_GOFISH_PERSON= "dm:gofish_person"
+    //增加邮箱合法性验证
+    val DW_EMAIL_VALID = "dw:gofish_email_valid"
+    //获取手机号
+    val DW_GOFISH_COMPANY = "dw:gofish_company"
 
     import spark.implicits._
 
     //将hbase数据转换为df
     val company_rdd = conn_funcs.get_hbase_rdd(sc,DM_GOFISH_COMPANY)
     val person_rdd = conn_funcs.get_hbase_rdd(sc,DM_GOFISH_PERSON)
+    //获取邮箱合法性hbase表数据
+    val email_rdd = conn_funcs.get_hbase_rdd(sc, DW_EMAIL_VALID)
+    val dw_company_rdd = conn_funcs.get_hbase_rdd(sc, DW_GOFISH_COMPANY)
+
 
 
     //根据样例类字段生成df
@@ -150,32 +158,55 @@ object dm_company_person_hbase_flag {
     val person_df = person_rdd.map(x=>(
       Bytes.toString(x._2.getValue(Bytes.toBytes("info"),Bytes.toBytes("dm_gofish_company_id")))
       ))
-      .toDF("dm_gofish_company_id").distinct().repartition(200).as("df_gofish_person")
+      .toDF("dm_gofish_company_id").distinct().repartition(200).as("df_gofish_person")//一定要去重的
+
+    //增加邮箱合法性验证数据, 可能会有重复
+    val email_df = email_rdd.map(x=>(
+      Bytes.toString(x._2.getValue(Bytes.toBytes("info"),Bytes.toBytes("dw_gofish_company_id"))),
+      Bytes.toString(x._2.getValue(Bytes.toBytes("info"),Bytes.toBytes("is_valid")))
+    )).toDF("dw_gofish_company_id","is_valid").distinct().repartition(200).as("df_email") //一定要去重的
+
+
+    //4.增加手机号tel字段,不需要去重
+    val dw_company_df = dw_company_rdd.map(x=>(
+      Bytes.toString(x._2.getRow),
+      Bytes.toString(x._2.getValue(Bytes.toBytes("info"),Bytes.toBytes("tel")))
+    )).toDF("tel_id","ori_tel").distinct().repartition(200).as("dw_gofish_company")
+
+
+
+
 
     //时间字段统一
     val date_col = from_unixtime((col("year_established_new").cast("long"))/1000,"yyyy-MM-dd")
     val format_date_col = when(date_col.isNotNull,date_col).otherwise(date_format(col("year_established_new"),"yyyy-MM-dd"))
 
     //根据rowkey进行关联，如果没有该字段则为空
-    val df_gofish_company = company_df.join(person_df,expr("df_gofish_company.row_key=df_gofish_person.dm_gofish_company_id"),"left")
+    val df_gofish_company = company_df
+      .join(person_df,expr("df_gofish_company.row_key=df_gofish_person.dm_gofish_company_id"),"left")
+      .join(email_df,expr("df_gofish_company.row_key=df_email.dw_gofish_company_id"),"left")
+      .join(dw_company_df,expr("df_gofish_company.row_key=dw_gofish_company.tel_id"),"left")
+      //字段类型转换
       .withColumn("is_delete",coalesce(col("is_delete").cast("int"),lit(0)))
       .withColumn("sort_long",coalesce(col("sort_long").cast("long"),lit(0)))
       .withColumn("status",coalesce(col("status").cast("long"),lit(0)))//如果为空，转为0
       .withColumn("year_established_new",format_date_col)
-      .withColumn("staff_status",when(col("dm_gofish_company_id").isNull,lit(0)).otherwise(lit(1)).cast("int"))
+      //增加手机号
+      .withColumn("tel",col("ori_tel"))
+      //原有状态逻辑
+//      .withColumn("staff_status",when(col("dm_gofish_company_id").isNull,lit(0)).otherwise(lit(1)).cast("int"))
+      //增加邮箱判断逻辑
+      .withColumn("staff_status",when(col("dm_gofish_company_id").isNotNull || col("is_valid") === lit(1),lit(1)).otherwise(lit(0)).cast("int"))
       .repartition(200)
 
-
-    /**
-     * 1. 根据表直接提到的 id , 主表无法关联
-     * 2. 根据row_kew 进行关联很多结果集也为空
-     */
-    println("结果集数据条数")
-    df_gofish_company.filter(col("staff_status")=!=lit(0)).show(100,false)
+    //测试打印
+    df_gofish_company.filter(col("staff_status")===lit(1)).show(200,false)
+    println(company_df.count)
+    println(df_gofish_company.count)
 
     val result = df_gofish_company
         .withColumn("id",col("row_key")) //用 rowkey 的值替换 id
-        .drop("dm_gofish_company_id","row_key")
+        .drop("dm_gofish_company_id","row_key","dw_gofish_company_id","is_valid","ori_tel")
 
     // 写入ES
     result.write.format("org.elasticsearch.spark.sql").options(conn_funcs.options)

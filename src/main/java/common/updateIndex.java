@@ -61,6 +61,8 @@ public class updateIndex {
         // 发起请求得到响应
         GetResponse documentFields = transportClient.prepareGet("index3", "user3", "10").get();
         System.out.println(documentFields.getSource());
+
+
     }
     /**
      * 增加文档
