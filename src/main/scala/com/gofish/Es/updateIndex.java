@@ -1,4 +1,4 @@
-package common;
+package com.gofish.Es;
 
 
 import org.elasticsearch.action.bulk.BulkRequestBuilder;

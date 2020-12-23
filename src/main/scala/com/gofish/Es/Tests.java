@@ -1,4 +1,4 @@
-package common;
+package com.gofish.Es;
 
 /**
  * <p>Description: 添加描述</p>

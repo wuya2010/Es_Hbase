@@ -1,22 +1,19 @@
-package com.gofish.test
+package com.gofish.Hbase
 
 import java.net.URI
 
-import com.gofish.test.writeHbaseBulk.tableName
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileSystem, Path}
-import org.apache.hadoop.hbase.{HBaseConfiguration, HColumnDescriptor, HTableDescriptor, KeyValue, TableName}
-import org.apache.hadoop.hbase.client.{ConnectionFactory, Table}
+import org.apache.hadoop.hbase.client.ConnectionFactory
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable
 import org.apache.hadoop.hbase.mapreduce.{HFileOutputFormat2, LoadIncrementalHFiles, TableOutputFormat}
 import org.apache.hadoop.hbase.util.Bytes
-import org.apache.hadoop.mapred.JobConf
+import org.apache.hadoop.hbase._
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.types.{IntegerType, LongType, StringType}
 import org.apache.spark.sql.{DataFrame, SparkSession}
 
 import scala.collection.mutable
-import scala.collection.mutable.ListBuffer
 
 /**
  * <p>Description: 添加描述</p>
@@ -436,6 +433,8 @@ object writeHbaseBulk3 {
 //    insertBigData("test_wang2",rdd2)
 
    // Added a key not lexically larger than previou
+
+    //可正常使用
     import spark.implicits._
     val test_df = spark.sparkContext.parallelize(Array(
       gofishCompany("0b81f0bf3747cbaf27a5a895a47c1dd9", "Israel J Diaz P  ","我是大众故宫","","","","","","","","","","","","","","","","","https://calle londres edif ius ph1, las merc caracas miranda  ","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","",""),

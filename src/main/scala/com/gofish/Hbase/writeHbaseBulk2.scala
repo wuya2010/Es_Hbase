@@ -1,18 +1,17 @@
-
-
+package com.gofish.Hbase
 
 import java.net.URI
 
-import com.gofish.test.writeHbaseBulk.tableName
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileSystem, Path}
-import org.apache.hadoop.hbase.client._
+import org.apache.hadoop.hbase.client.{ConnectionFactory, Table}
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable
 import org.apache.hadoop.hbase.mapreduce.{HFileOutputFormat2, LoadIncrementalHFiles, TableOutputFormat}
 import org.apache.hadoop.hbase.{HBaseConfiguration, KeyValue, TableName}
 import org.apache.hadoop.mapred.JobConf
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
+
 /**
  * <p>Description: 添加描述</p>
  * <p>Copyright: Copyright (c) 2020</p>

@@ -1,4 +1,4 @@
-package common;
+package com.gofish.Es;
 
 
 import com.alibaba.fastjson.JSON;
